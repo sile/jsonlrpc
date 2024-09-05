@@ -2,6 +2,12 @@
 name = "jsonlrpc"
 version = "0.1.0"
 edition = "2021"
+authors = ["Takeru Ohta <phjgt308@gmail.com>"]
+license = "MIT"
+description = "A JSON-RPC 2.0 library that streams JSON objects in JSON Lines format"
+homepage = "https://github.com/sile/jsonlrpc"
+repository = "https://github.com/sile/jsonlrpc"
+readme = "README.md"
 
 [dependencies]
 serde = { version = "1.0.209", features = ["derive"] }
