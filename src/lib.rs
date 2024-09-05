@@ -140,14 +140,16 @@ mod tests {
         let socket = TcpStream::connect(server_addr).expect("failed to connect to server");
         let mut client = RpcClient::new(socket);
 
-        let request = RequestObject {
-            jsonrpc: JsonRpcVersion::V2,
-            id: None,
-            method: "foo".to_string(),
-            params: None,
-        };
-        let response = client.call(&request).expect("failed to send request");
-        assert!(response.is_none());
+        for _ in 0..100 {
+            let request = RequestObject {
+                jsonrpc: JsonRpcVersion::V2,
+                id: None,
+                method: "foo".to_string(),
+                params: None,
+            };
+            let response = client.call(&request).expect("failed to send request");
+            assert!(response.is_none());
+        }
     }
 
     #[test]
@@ -215,7 +217,7 @@ mod tests {
             for stream in listener.incoming() {
                 let stream = stream.expect("failed to accept incoming connection");
                 let mut stream = JsonlStream::new(stream);
-                std::thread::spawn(move || {
+                std::thread::spawn(move || loop {
                     let request: MaybeBatch<RequestObject> =
                         stream.read_object().expect("failed to read request");
                     match request {

@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub struct JsonlStream<S> {
     inner: S,
     read_buf: Vec<u8>,
+    read_buf_end: usize,
     read_buf_offset: usize,
     write_buf: Vec<u8>,
     write_buf_offset: usize,
@@ -18,6 +19,7 @@ impl<S: Read + Write> JsonlStream<S> {
         JsonlStream {
             inner,
             read_buf: vec![0; 1024],
+            read_buf_end: 0,
             read_buf_offset: 0,
             write_buf: Vec::new(),
             write_buf_offset: 0,
@@ -33,29 +35,47 @@ impl<S: Read + Write> JsonlStream<S> {
     where
         T: for<'a> Deserialize<'a>,
     {
+        if self.read_buf_offset != 0 {
+            if let Some(i) = self.read_buf[self.read_buf_offset..self.read_buf_end]
+                .iter()
+                .position(|&b| b == b'\n')
+                .map(|i| self.read_buf_offset + i)
+            {
+                let item = serde_json::from_slice(&self.read_buf[self.read_buf_offset..i])?;
+                self.read_buf_offset = i + 1;
+                return Ok(item);
+            }
+
+            self.read_buf
+                .copy_within(self.read_buf_offset..self.read_buf_end, 0);
+            self.read_buf_end -= self.read_buf_offset;
+            self.read_buf_offset = 0;
+        }
+
         loop {
-            if self.read_buf_offset == self.read_buf.len() {
+            if self.read_buf_end == self.read_buf.len() {
                 self.read_buf.resize(self.read_buf.len() * 2, 0);
             }
 
             let read_size = self
                 .inner
-                .read(&mut self.read_buf[self.read_buf_offset..])
+                .read(&mut self.read_buf[self.read_buf_end..])
                 .map_err(serde_json::Error::io)?;
             if read_size == 0 {
                 return Err(serde_json::Error::io(ErrorKind::UnexpectedEof.into()));
             }
 
-            let old_offset = self.read_buf_offset;
-            self.read_buf_offset += read_size;
+            let old_end = self.read_buf_end;
+            self.read_buf_end += read_size;
 
-            for i in old_offset..self.read_buf_offset {
-                if self.read_buf[i] == b'\n' {
-                    let item = serde_json::from_slice(&self.read_buf[..i])?;
-                    self.read_buf.copy_within(i + 1..self.read_buf_offset, 0);
-                    self.read_buf_offset -= i + 1;
-                    return Ok(item);
-                }
+            if let Some(i) = self.read_buf[old_end..self.read_buf_end]
+                .iter()
+                .position(|&b| b == b'\n')
+                .map(|i| old_end + i)
+            {
+                let item = serde_json::from_slice(&self.read_buf[..i])?;
+                self.read_buf_offset = i + 1;
+                return Ok(item);
             }
         }
     }
@@ -102,7 +122,7 @@ impl<S: Read + Write> JsonlStream<S> {
 
     /// Returns the incomplete JSON line in the read buffer.
     pub fn read_buf(&self) -> &[u8] {
-        &self.read_buf[..self.read_buf_offset]
+        &self.read_buf[self.read_buf_offset..self.read_buf_end]
     }
 
     /// Returns the remaining data in the write buffer.
