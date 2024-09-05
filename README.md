@@ -42,14 +42,17 @@ assert_eq!(id, RequestId::Number(1));
 
 RPC server:
 ```rust
-fn spawn_server_thread() -> std::net::SocketAddr {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind to address");
+use std::net::{SocketAddr, TcpListener};
+use jsonlrpc::{JsonlStream, JsonRpcVersion, RequestObject, ResponseObject};
+
+fn spawn_server_thread() -> SocketAddr {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind to address");
     let addr = listener.local_addr().expect("failed to get local address");
 
     std::thread::spawn(move || {
         for stream in listener.incoming() {
             let stream = stream.expect("failed to accept incoming connection");
-            let mut stream = jsonlrpc::JsonlStream::new(stream);
+            let mut stream = JsonlStream::new(stream);
             std::thread::spawn(move || {
                 let request: RequestObject = stream.read_object().expect("failed to read request");
                 let response = ResponseObject::Ok {
