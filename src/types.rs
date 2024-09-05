@@ -147,7 +147,7 @@ impl Display for ErrorObject {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ErrorCode(i32);
 
 impl ErrorCode {

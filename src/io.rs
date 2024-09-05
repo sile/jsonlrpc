@@ -70,6 +70,9 @@ impl<S: Read + Write> JsonlStream<S> {
                 .inner
                 .write(&self.write_buf[self.write_buf_offset..])
                 .map_err(serde_json::Error::io)?;
+            if written_size == 0 {
+                return Err(serde_json::Error::io(ErrorKind::WriteZero.into()));
+            }
             self.write_buf_offset += written_size;
         }
 
