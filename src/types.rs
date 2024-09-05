@@ -96,6 +96,33 @@ impl Display for RequestObject {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
+pub enum MaybeBatch<T> {
+    Single(T),
+    Batch(Vec<T>),
+}
+
+impl<T> FromStr for MaybeBatch<T>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(s)
+    }
+}
+
+impl<T> Display for MaybeBatch<T>
+where
+    T: Serialize,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        serde_json::to_string(self).expect("unreachable").fmt(f)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum ResponseObject {
     Ok {
         jsonrpc: JsonRpcVersion,
