@@ -59,7 +59,12 @@ impl<S: Read + Write> JsonlStream<S> {
     {
         serde_json::to_writer(&mut self.write_buf, item)?;
         self.write_buf.push(b'\n');
+        self.flush()?;
 
+        Ok(())
+    }
+
+    pub fn flush(&mut self) -> Result<(), serde_json::Error> {
         while self.write_buf_offset < self.write_buf.len() {
             let written_size = self
                 .inner
