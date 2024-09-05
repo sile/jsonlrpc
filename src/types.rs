@@ -2,8 +2,12 @@ use std::{fmt::Display, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// JSON-RPC version.
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize,
+)]
 pub enum JsonRpcVersion {
+    /// JSON-RPC 2.0.
     #[default]
     #[serde(rename = "2.0")]
     V2,
@@ -23,10 +27,17 @@ impl Display for JsonRpcVersion {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+/// Request ID.
+///
+/// This representation does not accept `null` and floating-point numbers,
+/// as these are discouraged by the specification.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestId {
+    /// Numeric ID.
     Number(i64),
+
+    /// String ID.
     String(String),
 }
 
@@ -44,10 +55,14 @@ impl Display for RequestId {
     }
 }
 
+/// Request parameters.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum RequestParams {
+    /// By-position parameters.
     Array(Vec<serde_json::Value>),
+
+    /// By-name parameters.
     Object(serde_json::Map<String, serde_json::Value>),
 }
 
@@ -65,17 +80,46 @@ impl Display for RequestParams {
     }
 }
 
-// Note that users can define their own request structs or enums as follows:
-// ...
+/// Default representation for a request object.
+///
+/// Note that this is merely a default representation.
+/// Users are free to define their own request structures or enums as shown below:
+///
+/// ```
+/// use serde::{Deserialize, Serialize};
+/// use jsonlrpc::{JsonRpcVersion, Request, RequestId};
+///
+/// #[derive(Serialize, Deserialize)]
+/// #[serde(tag = "method", rename_all = "snake_case")]
+/// enum KvsRequest {
+///     Put { jsonrpc: JsonRpcVersion, id: RequestId, key: String, value: String },
+///     Get { jsonrpc: JsonRpcVersion, id: RequestId, key: String },
+///     Delete { jsonrpc: JsonRpcVersion, key: String },
+/// }
+///
+/// impl Request for KvsRequest {
+///     type Response = serde_json::Value;
+///
+///     fn is_notification(&self) -> bool {
+///         matches!(self, KvsRequest::Delete { .. })
+///     }
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct RequestObject {
+    /// JSON-RPC version.
     pub jsonrpc: JsonRpcVersion,
 
+    /// Method name.
     pub method: String,
 
+    /// Request parameters.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub params: Option<RequestParams>,
 
+    /// Request ID.
+    ///
+    /// If `None`, the request is a notification.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<RequestId>,
 }
@@ -94,10 +138,14 @@ impl Display for RequestObject {
     }
 }
 
+/// Single or batch object.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MaybeBatch<T> {
+    /// Single request.
     Single(T),
+
+    /// Batch request.
     Batch(Vec<T>),
 }
 
@@ -121,17 +169,36 @@ where
     }
 }
 
+/// Default representation for a response object.
+///
+/// Note that this is merely a default representation.
+/// Users are free to use any structs or enums as long as they implement the [`Serialize`] and [`Deserialize`] traits.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ResponseObject {
+    /// Success response.
     Ok {
+        /// JSON-RPC version.
         jsonrpc: JsonRpcVersion,
+
+        /// Result value.
         result: serde_json::Value,
+
+        /// Request ID.
         id: RequestId,
     },
+
+    /// Error response.
     Err {
+        /// JSON-RPC version.
         jsonrpc: JsonRpcVersion,
+
+        /// Error information.
         error: ErrorObject,
+
+        /// Request ID.
+        ///
+        /// If deserialization of the associated request fails, this field will be `None`.
         id: Option<RequestId>,
     },
 }
@@ -150,12 +217,16 @@ impl Display for ResponseObject {
     }
 }
 
+/// Error object.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ErrorObject {
+    /// Error code.
     pub code: ErrorCode,
 
+    /// Error message.
     pub message: String,
 
+    /// Additional information about the error.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
 }
@@ -174,34 +245,47 @@ impl Display for ErrorObject {
     }
 }
 
+/// Error code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct ErrorCode(i32);
 
 impl ErrorCode {
+    /// Parse error.
     pub const PARSE_ERROR: Self = Self(-32700);
+
+    /// Invalid request.
     pub const INVALID_REQUEST: Self = Self(-32600);
+
+    /// Method not found.
     pub const METHOD_NOT_FOUND: Self = Self(-32601);
+
+    /// Invalid parameters.
     pub const INVALID_PARAMS: Self = Self(-32602);
+
+    /// Internal error.
     pub const INTERNAL_ERROR: Self = Self(-32603);
 
+    /// Makes a new [`ErrorCode`] instance.
     pub const fn new(code: i32) -> Self {
         Self(code)
     }
 
+    /// Returns the error code value.
     pub const fn get(self) -> i32 {
         self.0
     }
 
+    /// Returns `true` if the error code is a pre-defined error code.
     pub const fn is_pre_defined(self) -> bool {
         -32768 <= self.0 && self.0 <= -32000
     }
 
+    /// Returns `true` if the error code is a server error.
     pub const fn is_server_error(self) -> bool {
         -32099 <= self.0 && self.0 <= -32000
     }
-}
 
-impl ErrorCode {
+    /// A convenience method to guess the error code from a [`serde_json::Error`].
     pub fn guess(error: &serde_json::Error) -> Self {
         match error.classify() {
             serde_json::error::Category::Io => Self::INTERNAL_ERROR,

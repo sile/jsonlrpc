@@ -1,3 +1,59 @@
+//! A [JSON-RPC 2.0] library that streams JSON objects in [JSON Lines] format.
+//!
+//! [JSON-RPC 2.0]: https://www.jsonrpc.org/specification
+//! [JSON Lines]: https://jsonlines.org/
+//!
+//! # Example
+//!
+//! ```
+//! use std::net::TcpStream;
+//! use jsonlrpc::{RpcClient, RequestId, RequestObject, ResponseObject, JsonRpcVersion};
+//!
+//! // Connect to a JSON-RPC server.
+//! let server_addr = /* ... */
+//! # spawn_server_thread();
+//! let socket = TcpStream::connect(server_addr).expect("failed to connect to server");
+//! let mut client = RpcClient::new(socket);
+//!
+//! // Send a request to the server.
+//! let request = RequestObject {
+//!     jsonrpc: JsonRpcVersion::V2,
+//!     id: Some(RequestId::Number(1)),
+//!     method: "foo".to_string(),
+//!     params: None,
+//! };
+//! let response = client.call(&request).expect("failed to RPC call");
+//!
+//! // Check the response.
+//! let Some(ResponseObject::Ok { result, id, .. }) = response else {
+//!     panic!("expected ok response, got notification or err response")
+//! };
+//! assert_eq!(id, RequestId::Number(1));
+//!
+//! # fn spawn_server_thread() -> std::net::SocketAddr {
+//! #     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind to address");
+//! #     let addr = listener.local_addr().expect("failed to get local address");
+//! #
+//! #     std::thread::spawn(move || {
+//! #         for stream in listener.incoming() {
+//! #             let stream = stream.expect("failed to accept incoming connection");
+//! #             let mut stream = jsonlrpc::JsonlStream::new(stream);
+//! #             std::thread::spawn(move || {
+//! #                 let request: RequestObject = stream.read_object().expect("failed to read request");
+//! #                 let response = ResponseObject::Ok {
+//! #                     jsonrpc: JsonRpcVersion::V2,
+//! #                     id: request.id.expect("expected request id"),
+//! #                     result: serde_json::Value::String(request.method),
+//! #                 };
+//! #                 stream.write_object(&response).expect("failed to write response");
+//! #             });
+//! #         }
+//! #     });
+//! #     addr
+//! # }
+//! ```
+#![warn(missing_docs)]
+
 use serde::{Deserialize, Serialize};
 
 mod io;
@@ -11,9 +67,35 @@ pub use types::{
     ResponseObject,
 };
 
+/// This trait represents a JSON-RPC request type that can be used with [`RpcClient`].
+///
+/// # Examples
+///
+/// ```
+/// use serde::{Deserialize, Serialize};
+/// use jsonlrpc::{JsonRpcVersion, Request, RequestId};
+///
+/// #[derive(Serialize, Deserialize)]
+/// #[serde(tag = "method", rename_all = "snake_case")]
+/// enum KvsRequest {
+///     Put { jsonrpc: JsonRpcVersion, id: RequestId, key: String, value: String },
+///     Get { jsonrpc: JsonRpcVersion, id: RequestId, key: String },
+///     Delete { jsonrpc: JsonRpcVersion, key: String },
+/// }
+///
+/// impl Request for KvsRequest {
+///     type Response = serde_json::Value;
+///
+///     fn is_notification(&self) -> bool {
+///         matches!(self, KvsRequest::Delete { .. })
+///     }
+/// }
+/// ```
 pub trait Request: Serialize + for<'a> Deserialize<'a> {
+    /// Response type.
     type Response: Serialize + for<'a> Deserialize<'a>;
 
+    /// Returns `true` if the request is a notification.
     fn is_notification(&self) -> bool;
 }
 
@@ -135,7 +217,7 @@ mod tests {
                 let mut stream = JsonlStream::new(stream);
                 std::thread::spawn(move || {
                     let request: MaybeBatch<RequestObject> =
-                        stream.read_item().expect("failed to read request");
+                        stream.read_object().expect("failed to read request");
                     match request {
                         MaybeBatch::Single(request) => {
                             if let Some(id) = request.id {
@@ -145,7 +227,7 @@ mod tests {
                                     result: serde_json::Value::String(request.method),
                                 };
                                 stream
-                                    .write_item(&response)
+                                    .write_object(&response)
                                     .expect("failed to write response");
                             }
                         }
@@ -162,7 +244,7 @@ mod tests {
                                 }
                             }
                             stream
-                                .write_item(&responses)
+                                .write_object(&responses)
                                 .expect("failed to write response");
                         }
                     }

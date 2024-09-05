@@ -2,6 +2,7 @@ use std::io::{ErrorKind, Read, Write};
 
 use serde::{Deserialize, Serialize};
 
+/// JSONL stream.
 #[derive(Debug)]
 pub struct JsonlStream<S> {
     inner: S,
@@ -12,6 +13,7 @@ pub struct JsonlStream<S> {
 }
 
 impl<S: Read + Write> JsonlStream<S> {
+    /// Makes a new [`JsonlStream`] instance.
     pub fn new(inner: S) -> JsonlStream<S> {
         JsonlStream {
             inner,
@@ -22,7 +24,12 @@ impl<S: Read + Write> JsonlStream<S> {
         }
     }
 
-    pub fn read_item<T>(&mut self) -> Result<T, serde_json::Error>
+    /// Reads a JSONL object from the stream.
+    ///
+    /// Note that if the inner stream is in non-blocking mode, this method may return
+    /// [`ErrorKind::WouldBlock`] error.
+    /// If it happens, you should retry this method after the stream becomes readable.
+    pub fn read_object<T>(&mut self) -> Result<T, serde_json::Error>
     where
         T: for<'a> Deserialize<'a>,
     {
@@ -53,17 +60,28 @@ impl<S: Read + Write> JsonlStream<S> {
         }
     }
 
-    pub fn write_item<T>(&mut self, item: &T) -> Result<(), serde_json::Error>
+    /// Writes a JSONL object to the stream.
+    ///
+    /// Note that if the inner stream is in non-blocking mode, this method may return
+    /// [`ErrorKind::WouldBlock`] error.
+    /// If it happens, you should retry by calling [`JsonlStream::flush()`] after the stream becomes writable.
+    pub fn write_object<T>(&mut self, object: &T) -> Result<(), serde_json::Error>
     where
         T: Serialize,
     {
-        serde_json::to_writer(&mut self.write_buf, item)?;
+        serde_json::to_writer(&mut self.write_buf, object)?;
         self.write_buf.push(b'\n');
         self.flush()?;
 
         Ok(())
     }
 
+    /// Writes all remaining data in the write buffer to the stream.
+    ///
+    /// You can use [`JsonlStream::write_buf()`] to check if there is any remaining data in the write buffer.
+    ///
+    /// As with [`JsonlStream::write_object()`], this method may return [`ErrorKind::WouldBlock`] error
+    /// if the inner stream is in non-blocking mode.
     pub fn flush(&mut self) -> Result<(), serde_json::Error> {
         while self.write_buf_offset < self.write_buf.len() {
             let written_size = self
@@ -82,22 +100,29 @@ impl<S: Read + Write> JsonlStream<S> {
         Ok(())
     }
 
+    /// Returns the incomplete JSON line in the read buffer.
     pub fn read_buf(&self) -> &[u8] {
         &self.read_buf[..self.read_buf_offset]
     }
 
+    /// Returns the remaining data in the write buffer.
     pub fn write_buf(&self) -> &[u8] {
         &self.write_buf[self.write_buf_offset..]
     }
 
+    /// Returns a reference to the inner stream.
     pub fn inner(&self) -> &S {
         &self.inner
     }
 
+    /// Returns a mutable reference to the inner stream.
     pub fn inner_mut(&mut self) -> &mut S {
         &mut self.inner
     }
 
+    /// Consumes the [`JsonlStream`] and returns the inner stream.
+    ///
+    /// Note that any remaining data in the read and write buffers will be lost.
     pub fn into_inner(self) -> S {
         self.inner
     }
