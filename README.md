@@ -64,6 +64,7 @@ fn spawn_server_thread() -> SocketAddr {
             });
         }
     });
+
     addr
 }
 ```
