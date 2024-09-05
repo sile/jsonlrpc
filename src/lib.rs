@@ -11,7 +11,7 @@
 //!
 //! // Connect to a JSON-RPC server.
 //! let server_addr = /* ... */
-//! # spawn_server_thread();
+//! # spawn_rpc_server_thread();
 //! let socket = TcpStream::connect(server_addr).expect("failed to connect to server");
 //! let mut client = RpcClient::new(socket);
 //!
@@ -30,7 +30,7 @@
 //! };
 //! assert_eq!(id, RequestId::Number(1));
 //!
-//! # fn spawn_server_thread() -> std::net::SocketAddr {
+//! # fn spawn_rpc_server_thread() -> std::net::SocketAddr {
 //! #     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind to address");
 //! #     let addr = listener.local_addr().expect("failed to get local address");
 //! #
