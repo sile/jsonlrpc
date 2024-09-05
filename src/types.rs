@@ -80,12 +80,6 @@ pub struct RequestObject {
     pub id: Option<RequestId>,
 }
 
-impl RequestObject {
-    pub fn is_notification(&self) -> bool {
-        self.id.is_none()
-    }
-}
-
 impl FromStr for RequestObject {
     type Err = serde_json::Error;
 
