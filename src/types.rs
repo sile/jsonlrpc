@@ -174,6 +174,17 @@ impl ErrorCode {
     }
 }
 
+impl ErrorCode {
+    pub fn guess(error: &serde_json::Error) -> Self {
+        match error.classify() {
+            serde_json::error::Category::Io => Self::INTERNAL_ERROR,
+            serde_json::error::Category::Syntax => Self::PARSE_ERROR,
+            serde_json::error::Category::Data => Self::INVALID_REQUEST,
+            serde_json::error::Category::Eof => Self::PARSE_ERROR,
+        }
+    }
+}
+
 impl FromStr for ErrorCode {
     type Err = serde_json::Error;
 
