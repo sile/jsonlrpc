@@ -51,6 +51,22 @@ mod tests {
         assert_eq!(result, serde_json::Value::String("foo".to_string()));
     }
 
+    #[test]
+    fn test_notification() {
+        let server_addr = spawn_server_thread();
+        let socket = TcpStream::connect(server_addr).expect("failed to connect to server");
+        let mut client = RpcClient::new(socket);
+
+        let request = RequestObject {
+            jsonrpc: JsonRpcVersion::V2,
+            id: None,
+            method: "foo".to_string(),
+            params: None,
+        };
+        let response = client.call(&request).expect("failed to send request");
+        assert!(response.is_none());
+    }
+
     fn spawn_server_thread() -> SocketAddr {
         let listener =
             std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind to address");
