@@ -1,12 +1,14 @@
 use std::io::{ErrorKind, Read, Write};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct JsonlStream<S> {
     inner: S,
     read_buf: Vec<u8>,
     read_buf_offset: usize,
+    write_buf: Vec<u8>,
+    write_buf_offset: usize,
 }
 
 impl<S: Read + Write> JsonlStream<S> {
@@ -15,6 +17,8 @@ impl<S: Read + Write> JsonlStream<S> {
             inner,
             read_buf: vec![0; 1024],
             read_buf_offset: 0,
+            write_buf: Vec::new(),
+            write_buf_offset: 0,
         }
     }
 
@@ -47,6 +51,35 @@ impl<S: Read + Write> JsonlStream<S> {
                 }
             }
         }
+    }
+
+    pub fn write_item<T>(&mut self, item: &T) -> Result<(), serde_json::Error>
+    where
+        T: Serialize,
+    {
+        serde_json::to_writer(&mut self.write_buf, item)?;
+        self.write_buf.push(b'\n');
+
+        while self.write_buf_offset < self.write_buf.len() {
+            let written_size = self
+                .inner
+                .write(&self.write_buf[self.write_buf_offset..])
+                .map_err(serde_json::Error::io)?;
+            self.write_buf_offset += written_size;
+        }
+
+        self.write_buf.clear();
+        self.write_buf_offset = 0;
+
+        Ok(())
+    }
+
+    pub fn read_buf(&self) -> &[u8] {
+        &self.read_buf[..self.read_buf_offset]
+    }
+
+    pub fn write_buf(&self) -> &[u8] {
+        &self.write_buf[self.write_buf_offset..]
     }
 
     pub fn inner(&self) -> &S {
