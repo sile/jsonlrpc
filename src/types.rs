@@ -197,7 +197,7 @@ impl ErrorCode {
     }
 
     pub const fn is_server_error(self) -> bool {
-        -32000 <= self.0 && self.0 <= -32099
+        -32099 <= self.0 && self.0 <= -32000
     }
 }
 
