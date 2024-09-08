@@ -54,8 +54,6 @@
 //! ```
 #![warn(missing_docs)]
 
-use serde::{Deserialize, Serialize};
-
 mod io;
 mod rpc;
 mod types;
@@ -66,46 +64,6 @@ pub use types::{
     ErrorCode, ErrorObject, JsonRpcVersion, MaybeBatch, RequestId, RequestObject, RequestParams,
     ResponseObject,
 };
-
-/// This trait represents a JSON-RPC request type that can be used with [`RpcClient`].
-///
-/// # Examples
-///
-/// ```
-/// use serde::{Deserialize, Serialize};
-/// use jsonlrpc::{JsonRpcVersion, Request, RequestId};
-///
-/// #[derive(Serialize, Deserialize)]
-/// #[serde(tag = "method", rename_all = "snake_case")]
-/// enum KvsRequest {
-///     Put { jsonrpc: JsonRpcVersion, id: RequestId, key: String, value: String },
-///     Get { jsonrpc: JsonRpcVersion, id: RequestId, key: String },
-///     Delete { jsonrpc: JsonRpcVersion, key: String },
-/// }
-///
-/// impl Request for KvsRequest {
-///     type Response = serde_json::Value;
-///
-///     fn is_notification(&self) -> bool {
-///         matches!(self, KvsRequest::Delete { .. })
-///     }
-/// }
-/// ```
-pub trait Request: Serialize + for<'a> Deserialize<'a> {
-    /// Response type.
-    type Response: Serialize + for<'a> Deserialize<'a>;
-
-    /// Returns `true` if the request is a notification.
-    fn is_notification(&self) -> bool;
-}
-
-impl Request for RequestObject {
-    type Response = ResponseObject;
-
-    fn is_notification(&self) -> bool {
-        self.id.is_none()
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -147,8 +105,7 @@ mod tests {
                 method: "foo".to_string(),
                 params: None,
             };
-            let response = client.call(&request).expect("failed to send request");
-            assert!(response.is_none());
+            client.cast(&request).expect("failed to send notification");
         }
     }
 
@@ -180,9 +137,9 @@ mod tests {
         };
 
         let requests = vec![request1, notification, request2];
-        let responses = client
-            .batch_call(&requests)
-            .expect("failed to send request");
+        let responses: Vec<ResponseObject> = client
+            .call(&requests)
+            .expect("failed to send batch request");
         assert_eq!(responses.len(), 2);
 
         let ResponseObject::Ok {

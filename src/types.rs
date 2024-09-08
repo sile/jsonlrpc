@@ -87,7 +87,7 @@ impl Display for RequestParams {
 ///
 /// ```
 /// use serde::{Deserialize, Serialize};
-/// use jsonlrpc::{JsonRpcVersion, Request, RequestId};
+/// use jsonlrpc::{JsonRpcVersion, RequestId};
 ///
 /// #[derive(Serialize, Deserialize)]
 /// #[serde(tag = "method", rename_all = "snake_case")]
@@ -95,14 +95,6 @@ impl Display for RequestParams {
 ///     Put { jsonrpc: JsonRpcVersion, id: RequestId, key: String, value: String },
 ///     Get { jsonrpc: JsonRpcVersion, id: RequestId, key: String },
 ///     Delete { jsonrpc: JsonRpcVersion, key: String },
-/// }
-///
-/// impl Request for KvsRequest {
-///     type Response = serde_json::Value;
-///
-///     fn is_notification(&self) -> bool {
-///         matches!(self, KvsRequest::Delete { .. })
-///     }
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

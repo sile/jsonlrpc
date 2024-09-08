@@ -1,6 +1,8 @@
 use std::io::{Read, Write};
 
-use crate::{JsonlStream, Request};
+use serde::{Deserialize, Serialize};
+
+use crate::JsonlStream;
 
 /// JSON-RPC client.
 #[derive(Debug)]
@@ -16,37 +18,29 @@ impl<S: Read + Write> RpcClient<S> {
         }
     }
 
-    /// RPC call.
+    /// RPC call (request).
     ///
-    /// If the request is a notification, the response will be `Ok(None)`.
-    pub fn call<T>(&mut self, request: &T) -> Result<Option<T::Response>, serde_json::Error>
+    /// The `request` can be a batch (array) if it includes at least one non-notification request object.
+    /// For a batch request that contains only notifications, use [`RpcClient::cast`] instead.
+    pub fn call<REQ, RES>(&mut self, request: &REQ) -> Result<RES, serde_json::Error>
     where
-        T: Request,
+        REQ: Serialize,
+        RES: for<'de> Deserialize<'de>,
     {
         self.stream.write_object(request)?;
-        if request.is_notification() {
-            return Ok(None);
-        }
-
         let response = self.stream.read_object()?;
-        Ok(Some(response))
+        Ok(response)
     }
 
-    /// Batch RPC call.
+    /// RPC call (notification).
     ///
-    /// If all requests are notifications, the response will be `Ok(Vec::new())`.
-    pub fn batch_call<T>(&mut self, requests: &[T]) -> Result<Vec<T::Response>, serde_json::Error>
+    /// The `notification` can be a batch (array).
+    pub fn cast<T>(&mut self, notification: &T) -> Result<(), serde_json::Error>
     where
-        T: Request,
+        T: Serialize,
     {
-        self.stream.write_object(&requests)?;
-
-        if requests.iter().all(|r| r.is_notification()) {
-            return Ok(Vec::new());
-        }
-
-        let responses = self.stream.read_object()?;
-        Ok(responses)
+        self.stream.write_object(notification)?;
+        Ok(())
     }
 
     /// Returns a reference to the underlying JSONL stream.
