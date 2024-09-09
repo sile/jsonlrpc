@@ -13,7 +13,7 @@ pub struct JsonlStream<S> {
     write_buf_offset: usize,
 }
 
-impl<S: Read + Write> JsonlStream<S> {
+impl<S> JsonlStream<S> {
     /// Makes a new [`JsonlStream`] instance.
     pub fn new(inner: S) -> JsonlStream<S> {
         JsonlStream {
@@ -26,6 +26,25 @@ impl<S: Read + Write> JsonlStream<S> {
         }
     }
 
+    /// Returns a reference to the inner stream.
+    pub fn inner(&self) -> &S {
+        &self.inner
+    }
+
+    /// Returns a mutable reference to the inner stream.
+    pub fn inner_mut(&mut self) -> &mut S {
+        &mut self.inner
+    }
+
+    /// Consumes the [`JsonlStream`] and returns the inner stream.
+    ///
+    /// Note that any remaining data in the read and write buffers will be lost.
+    pub fn into_inner(self) -> S {
+        self.inner
+    }
+}
+
+impl<S: Read> JsonlStream<S> {
     /// Reads a JSONL object from the stream.
     ///
     /// Note that if the inner stream is in non-blocking mode, this method may return
@@ -80,6 +99,13 @@ impl<S: Read + Write> JsonlStream<S> {
         }
     }
 
+    /// Returns the incomplete JSON line in the read buffer.
+    pub fn read_buf(&self) -> &[u8] {
+        &self.read_buf[self.read_buf_offset..self.read_buf_end]
+    }
+}
+
+impl<S: Write> JsonlStream<S> {
     /// Writes a JSONL object to the stream.
     ///
     /// Note that if the inner stream is in non-blocking mode, this method may return
@@ -120,30 +146,8 @@ impl<S: Read + Write> JsonlStream<S> {
         Ok(())
     }
 
-    /// Returns the incomplete JSON line in the read buffer.
-    pub fn read_buf(&self) -> &[u8] {
-        &self.read_buf[self.read_buf_offset..self.read_buf_end]
-    }
-
     /// Returns the remaining data in the write buffer.
     pub fn write_buf(&self) -> &[u8] {
         &self.write_buf[self.write_buf_offset..]
-    }
-
-    /// Returns a reference to the inner stream.
-    pub fn inner(&self) -> &S {
-        &self.inner
-    }
-
-    /// Returns a mutable reference to the inner stream.
-    pub fn inner_mut(&mut self) -> &mut S {
-        &mut self.inner
-    }
-
-    /// Consumes the [`JsonlStream`] and returns the inner stream.
-    ///
-    /// Note that any remaining data in the read and write buffers will be lost.
-    pub fn into_inner(self) -> S {
-        self.inner
     }
 }
