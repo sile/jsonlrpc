@@ -150,6 +150,11 @@ impl<T> MaybeBatch<T> {
         }
     }
 
+    /// Returns `true` if this instance is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Returns `true` if this instance is a batch object.
     pub fn is_batch(&self) -> bool {
         matches!(self, MaybeBatch::Batch(_))
