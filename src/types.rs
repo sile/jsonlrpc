@@ -134,11 +134,49 @@ impl Display for RequestObject {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MaybeBatch<T> {
-    /// Single request.
+    /// Single object.
     Single(T),
 
-    /// Batch request.
+    /// Batch object.
     Batch(Vec<T>),
+}
+
+impl<T> MaybeBatch<T> {
+    /// Returns the number of objects in this instance.
+    pub fn len(&self) -> usize {
+        match self {
+            MaybeBatch::Single(_) => 1,
+            MaybeBatch::Batch(v) => v.len(),
+        }
+    }
+
+    /// Returns `true` if this instance is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Returns `true` if this instance is a batch object.
+    pub fn is_batch(&self) -> bool {
+        matches!(self, MaybeBatch::Batch(_))
+    }
+
+    /// Returns an iterator over the objects in this instance.
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        match self {
+            MaybeBatch::Single(v) => Some(v).into_iter().chain(None.into_iter().flatten()),
+            MaybeBatch::Batch(v) => None.into_iter().chain(Some(v.iter()).into_iter().flatten()),
+        }
+    }
+
+    /// Returns a mutable iterator over the objects in this instance.
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        match self {
+            MaybeBatch::Single(v) => Some(v).into_iter().chain(None.into_iter().flatten()),
+            MaybeBatch::Batch(v) => None
+                .into_iter()
+                .chain(Some(v.iter_mut()).into_iter().flatten()),
+        }
+    }
 }
 
 impl<T> FromStr for MaybeBatch<T>
@@ -193,6 +231,32 @@ pub enum ResponseObject {
         /// If deserialization of the associated request fails, this field will be `None`.
         id: Option<RequestId>,
     },
+}
+
+impl ResponseObject {
+    /// Returns the request ID associated with this response.
+    pub fn id(&self) -> Option<&RequestId> {
+        match self {
+            ResponseObject::Ok { id, .. } => Some(id),
+            ResponseObject::Err { id, .. } => id.as_ref(),
+        }
+    }
+
+    /// Returns `Ok(result)` if this response is a success response, otherwise `Err(error)`.
+    pub fn to_std_result(&self) -> Result<&serde_json::Value, &ErrorObject> {
+        match self {
+            ResponseObject::Ok { result, .. } => Ok(result),
+            ResponseObject::Err { error, .. } => Err(error),
+        }
+    }
+
+    /// Converts this response object into a standard result.
+    pub fn into_std_result(self) -> Result<serde_json::Value, ErrorObject> {
+        match self {
+            ResponseObject::Ok { result, .. } => Ok(result),
+            ResponseObject::Err { error, .. } => Err(error),
+        }
+    }
 }
 
 impl FromStr for ResponseObject {
