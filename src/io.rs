@@ -45,12 +45,12 @@ impl<S> JsonlStream<S> {
 }
 
 impl<S: Read> JsonlStream<S> {
-    /// Reads a JSONL object from the stream.
+    /// Reads a JSONL value from the stream.
     ///
     /// Note that if the inner stream is in non-blocking mode, this method may return
     /// [`ErrorKind::WouldBlock`] error.
     /// If it happens, you should retry this method after the stream becomes readable.
-    pub fn read_object<T>(&mut self) -> Result<T, serde_json::Error>
+    pub fn read_value<T>(&mut self) -> Result<T, serde_json::Error>
     where
         T: for<'a> Deserialize<'a>,
     {
@@ -106,16 +106,16 @@ impl<S: Read> JsonlStream<S> {
 }
 
 impl<S: Write> JsonlStream<S> {
-    /// Writes a JSONL object to the stream.
+    /// Writes a JSONL value to the stream.
     ///
     /// Note that if the inner stream is in non-blocking mode, this method may return
     /// [`ErrorKind::WouldBlock`] error.
     /// If it happens, you should retry by calling [`JsonlStream::flush()`] after the stream becomes writable.
-    pub fn write_object<T>(&mut self, object: &T) -> Result<(), serde_json::Error>
+    pub fn write_value<T>(&mut self, value: &T) -> Result<(), serde_json::Error>
     where
         T: Serialize,
     {
-        serde_json::to_writer(&mut self.write_buf, object)?;
+        serde_json::to_writer(&mut self.write_buf, value)?;
         self.write_buf.push(b'\n');
         self.flush()?;
 
@@ -126,7 +126,7 @@ impl<S: Write> JsonlStream<S> {
     ///
     /// You can use [`JsonlStream::write_buf()`] to check if there is any remaining data in the write buffer.
     ///
-    /// As with [`JsonlStream::write_object()`], this method may return [`ErrorKind::WouldBlock`] error
+    /// As with [`JsonlStream::write_value()`], this method may return [`ErrorKind::WouldBlock`] error
     /// if the inner stream is in non-blocking mode.
     pub fn flush(&mut self) -> Result<(), serde_json::Error> {
         while self.write_buf_offset < self.write_buf.len() {
