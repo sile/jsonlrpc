@@ -54,13 +54,13 @@ fn spawn_server_thread() -> SocketAddr {
             let stream = stream.expect("failed to accept incoming connection");
             let mut stream = JsonlStream::new(stream);
             std::thread::spawn(move || {
-                let request: RequestObject = stream.read_object().expect("failed to read request");
+                let request: RequestObject = stream.read_value().expect("failed to read request");
                 let response = ResponseObject::Ok {
                     jsonrpc: JsonRpcVersion::V2,
                     id: request.id.expect("expected request id"),
                     result: serde_json::Value::String(request.method),
                 };
-                stream.write_object(&response).expect("failed to write response");
+                stream.write_value(&response).expect("failed to write response");
             });
         }
     });

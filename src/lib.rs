@@ -39,13 +39,13 @@
 //! #             let stream = stream.expect("failed to accept incoming connection");
 //! #             let mut stream = jsonlrpc::JsonlStream::new(stream);
 //! #             std::thread::spawn(move || {
-//! #                 let request: RequestObject = stream.read_object().expect("failed to read request");
+//! #                 let request: RequestObject = stream.read_value().expect("failed to read request");
 //! #                 let response = ResponseObject::Ok {
 //! #                     jsonrpc: JsonRpcVersion::V2,
 //! #                     id: request.id.expect("expected request id"),
 //! #                     result: serde_json::Value::String(request.method),
 //! #                 };
-//! #                 stream.write_object(&response).expect("failed to write response");
+//! #                 stream.write_value(&response).expect("failed to write response");
 //! #             });
 //! #         }
 //! #     });
@@ -176,7 +176,7 @@ mod tests {
                 let mut stream = JsonlStream::new(stream);
                 std::thread::spawn(move || loop {
                     let request: MaybeBatch<RequestObject> =
-                        stream.read_object().expect("failed to read request");
+                        stream.read_value().expect("failed to read request");
                     match request {
                         MaybeBatch::Single(request) => {
                             if let Some(id) = request.id {
@@ -186,7 +186,7 @@ mod tests {
                                     result: serde_json::Value::String(request.method),
                                 };
                                 stream
-                                    .write_object(&response)
+                                    .write_value(&response)
                                     .expect("failed to write response");
                             }
                         }
@@ -203,7 +203,7 @@ mod tests {
                                 }
                             }
                             stream
-                                .write_object(&responses)
+                                .write_value(&responses)
                                 .expect("failed to write response");
                         }
                     }

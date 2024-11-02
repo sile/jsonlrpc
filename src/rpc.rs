@@ -27,8 +27,8 @@ impl<S: Read + Write> RpcClient<S> {
         REQ: Serialize,
         RES: for<'de> Deserialize<'de>,
     {
-        self.stream.write_object(request)?;
-        let response = self.stream.read_object()?;
+        self.stream.write_value(request)?;
+        let response = self.stream.read_value()?;
         Ok(response)
     }
 
@@ -39,7 +39,7 @@ impl<S: Read + Write> RpcClient<S> {
     where
         T: Serialize,
     {
-        self.stream.write_object(notification)?;
+        self.stream.write_value(notification)?;
         Ok(())
     }
 
