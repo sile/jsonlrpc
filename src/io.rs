@@ -115,10 +115,21 @@ impl<S: Write> JsonlStream<S> {
     where
         T: Serialize,
     {
+        self.write_value_to_buf(value)?;
+        self.flush()?;
+        Ok(())
+    }
+
+    /// Writes a JSONL value to the write buffer.
+    ///
+    /// This method does not perform I/O operations.
+    /// To send the buffer bytes, please call JsonlStream::flush().
+    pub fn write_value_to_buf<T>(&mut self, value: &T) -> Result<(), serde_json::Error>
+    where
+        T: Serialize,
+    {
         serde_json::to_writer(&mut self.write_buf, value)?;
         self.write_buf.push(b'\n');
-        self.flush()?;
-
         Ok(())
     }
 
