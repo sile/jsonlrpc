@@ -102,18 +102,18 @@ pub struct RequestObject {
     /// JSON-RPC version.
     pub jsonrpc: JsonRpcVersion,
 
+    /// Request ID.
+    ///
+    /// If `None`, the request is a notification.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub id: Option<RequestId>,
+
     /// Method name.
     pub method: String,
 
     /// Request parameters.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub params: Option<RequestParams>,
-
-    /// Request ID.
-    ///
-    /// If `None`, the request is a notification.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub id: Option<RequestId>,
 }
 
 impl FromStr for RequestObject {
@@ -211,11 +211,11 @@ pub enum ResponseObject {
         /// JSON-RPC version.
         jsonrpc: JsonRpcVersion,
 
-        /// Result value.
-        result: serde_json::Value,
-
         /// Request ID.
         id: RequestId,
+
+        /// Result value.
+        result: serde_json::Value,
     },
 
     /// Error response.
@@ -223,13 +223,13 @@ pub enum ResponseObject {
         /// JSON-RPC version.
         jsonrpc: JsonRpcVersion,
 
-        /// Error information.
-        error: ErrorObject,
-
         /// Request ID.
         ///
         /// If deserialization of the associated request fails, this field will be `None`.
         id: Option<RequestId>,
+
+        /// Error information.
+        error: ErrorObject,
     },
 }
 
