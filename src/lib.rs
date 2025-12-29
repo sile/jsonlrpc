@@ -61,8 +61,7 @@ mod types;
 pub use io::JsonlStream;
 pub use rpc::RpcClient;
 pub use types::{
-    ErrorCode, ErrorObject, JsonRpcVersion, MaybeBatch, RequestId, RequestObject, RequestParams,
-    ResponseObject,
+    ErrorCode, ErrorObject, JsonRpcVersion, RequestId, RequestObject, RequestParams, ResponseObject,
 };
 
 #[cfg(test)]
@@ -107,62 +106,6 @@ mod tests {
             };
             client.cast(&request).expect("failed to send notification");
         }
-    }
-
-    #[test]
-    fn test_batch_call() {
-        let server_addr = spawn_server_thread();
-        let socket = TcpStream::connect(server_addr).expect("failed to connect to server");
-        let mut client = RpcClient::new(socket);
-
-        let request1 = RequestObject {
-            jsonrpc: JsonRpcVersion::V2,
-            id: Some(RequestId::Number(1)),
-            method: "foo".to_string(),
-            params: None,
-        };
-
-        let request2 = RequestObject {
-            jsonrpc: JsonRpcVersion::V2,
-            id: Some(RequestId::String("2".to_string())),
-            method: "bar".to_string(),
-            params: Some(RequestParams::Array(vec![])),
-        };
-
-        let notification = RequestObject {
-            jsonrpc: JsonRpcVersion::V2,
-            id: None,
-            method: "baz".to_string(),
-            params: Some(RequestParams::Object(serde_json::Map::new())),
-        };
-
-        let requests = vec![request1, notification, request2];
-        let responses: Vec<ResponseObject> = client
-            .call(&requests)
-            .expect("failed to send batch request");
-        assert_eq!(responses.len(), 2);
-
-        let ResponseObject::Ok {
-            result: result1,
-            id: id1,
-            ..
-        } = &responses[0]
-        else {
-            panic!("expected ok response, got err response")
-        };
-        assert_eq!(id1, &RequestId::Number(1));
-        assert_eq!(result1, &serde_json::Value::String("foo".to_string()));
-
-        let ResponseObject::Ok {
-            result: result2,
-            id: id2,
-            ..
-        } = &responses[1]
-        else {
-            panic!("expected ok response, got err response")
-        };
-        assert_eq!(id2, &RequestId::String("2".to_string()));
-        assert_eq!(result2, &serde_json::Value::String("bar".to_string()));
     }
 
     fn spawn_server_thread() -> SocketAddr {
