@@ -11,6 +11,13 @@ A [JSON-RPC 2.0] library that streams JSON objects in [JSON Lines] format.
 [JSON-RPC 2.0]: https://www.jsonrpc.org/specification
 [JSON Lines]: https://jsonlines.org/
 
+Unsupported Features
+--------------------
+
+- Batch requests
+  - Batching complicates server and client implementations
+  - However, it provides little performance benefit with JSON Lines
+
 Examples
 --------
 
