@@ -27,6 +27,24 @@ impl Display for JsonRpcVersion {
     }
 }
 
+impl nojson::DisplayJson for JsonRpcVersion {
+    fn fmt(&self, f: &mut nojson::JsonFormatter<'_, '_>) -> std::fmt::Result {
+        f.string("2.0")
+    }
+}
+
+impl<'text, 'raw> TryFrom<nojson::RawJsonValue<'text, 'raw>> for JsonRpcVersion {
+    type Error = nojson::JsonParseError;
+
+    fn try_from(value: nojson::RawJsonValue<'text, 'raw>) -> Result<Self, Self::Error> {
+        let version_str = value.to_unquoted_string_str()?;
+        if version_str != "2.0" {
+            return Err(value.invalid("unsupported JSON-RPC version"));
+        }
+        Ok(JsonRpcVersion::V2)
+    }
+}
+
 /// Request ID.
 ///
 /// This representation does not accept `null` and floating-point numbers,
