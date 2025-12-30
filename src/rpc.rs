@@ -19,9 +19,6 @@ impl<S: Read + Write> RpcClient<S> {
     }
 
     /// RPC call (request).
-    ///
-    /// The `request` can be a batch (array) if it includes at least one non-notification request object.
-    /// For a batch request that contains only notifications, use [`RpcClient::cast`] instead.
     pub fn call<REQ, RES>(&mut self, request: &REQ) -> Result<RES, serde_json::Error>
     where
         REQ: Serialize,
@@ -33,8 +30,6 @@ impl<S: Read + Write> RpcClient<S> {
     }
 
     /// RPC call (notification).
-    ///
-    /// The `notification` can be a batch (array).
     pub fn cast<T>(&mut self, notification: &T) -> Result<(), serde_json::Error>
     where
         T: Serialize,

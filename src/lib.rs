@@ -119,37 +119,17 @@ mod tests {
                 let mut stream = JsonlStream::new(stream);
                 std::thread::spawn(move || {
                     loop {
-                        let request: MaybeBatch<RequestObject> =
+                        let request: RequestObject =
                             stream.read_value().expect("failed to read request");
-                        match request {
-                            MaybeBatch::Single(request) => {
-                                if let Some(id) = request.id {
-                                    let response = ResponseObject::Ok {
-                                        jsonrpc: JsonRpcVersion::V2,
-                                        id,
-                                        result: serde_json::Value::String(request.method),
-                                    };
-                                    stream
-                                        .write_value(&response)
-                                        .expect("failed to write response");
-                                }
-                            }
-                            MaybeBatch::Batch(requests) => {
-                                let mut responses = vec![];
-                                for request in requests {
-                                    if let Some(id) = request.id {
-                                        let response = ResponseObject::Ok {
-                                            jsonrpc: JsonRpcVersion::V2,
-                                            id,
-                                            result: serde_json::Value::String(request.method),
-                                        };
-                                        responses.push(response);
-                                    }
-                                }
-                                stream
-                                    .write_value(&responses)
-                                    .expect("failed to write response");
-                            }
+                        if let Some(id) = request.id {
+                            let response = ResponseObject::Ok {
+                                jsonrpc: JsonRpcVersion::V2,
+                                id,
+                                result: serde_json::Value::String(request.method),
+                            };
+                            stream
+                                .write_value(&response)
+                                .expect("failed to write response");
                         }
                     }
                 });
